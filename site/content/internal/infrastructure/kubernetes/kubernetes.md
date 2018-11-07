@@ -7,19 +7,20 @@ weight: 10
 
 # Community Mattermost running on Kubernetes
 
-The objective of this page is to describe the process to move our Mattermost server ([community.mattermost.com](https://community.mattermost.com)) running on AWS using EC2 machines to Kubernetes.
+The objective of this page is to describe the process of moving our Mattermost server ([community.mattermost.com](https://community.mattermost.com)) to Kubernetes. Our server is running on AWS and uses EC2 machines.
 
-## Setup Kubernetes Cluster (K8s cluster, ingress and cert manager)
+## Setup Kubernetes Cluster (K8s cluster, Ingress and Cert manager)
 
-Here you can decide how and where you will deploy your K8s cluster. You can choose: AWS, Azure, GCP, your own Datacenter, baremetal...
-There are K8s services that host the master and etcd for you and you just need to take care the nodes, like AWS EKS, Azure, GCP
+Here you can decide how and where you will deploy your K8s cluster. You can choose AWS, Azure, GCP, your own Datacenter, baremetal...
 
-After you deploy you K8s cluster you will need to setup some Ingress, We choose for now the [NGINX Ingress](https://github.com/kubernetes/ingress-nginx)
+There are K8s services, like AWS EKS, Azure and GCP, that host the master and etcd for you and you just need to take care of the nodes.
 
- - We installed using this [documentation](https://kubernetes.github.io/ingress-nginx/deploy/#aws)
- - We need to add the cache and set the Keep-alive in order to reduce the WebSocket errors
+After you deploy your K8s cluster, you will need to set up Ingress. For now, we chose the [NGINX Ingress](https://github.com/kubernetes/ingress-nginx).
 
-So the ConfigMap will be similar to this one
+ - We installed it using this [documentation](https://kubernetes.github.io/ingress-nginx/deploy/#aws)
+ - You also need to add the cache and set the Keep-alive in order to reduce the WebSocket errors
+
+The ConfigMap will be similar to this one:
 
 ```YAML
 kind: ConfigMap
@@ -64,7 +65,7 @@ spec:
       targetPort: https
 ```
 
-We also need to add in the deployment a volume to store the cache. Then add in the deployment manifest the following items
+You also need to add a volume in the deployment to store the cache. Then add the following items in the deployment manifest:
 
 ```YAML
 ...
@@ -79,29 +80,30 @@ We also need to add in the deployment a volume to store the cache. Then add in t
 ```
 
 
-But you can install using [Helm](https://www.helm.sh/) which make it more easy to install. Please follow [this](https://github.com/helm/helm) to install Helm in your local environment and in the K8s cluster.
+You can also use [Helm](https://www.helm.sh/), which makes it easier to install. Please follow [this guide](https://github.com/helm/helm) to install Helm in your local environment and in the K8s cluster.
 
-The NGINX Helm chart you can check [here](https://github.com/helm/charts/tree/master/stable/nginx-ingress)
+You can check the NGINX Helm chart [here](https://github.com/helm/charts/tree/master/stable/nginx-ingress)
 
 ```Bash
 $ kubectl create ns ingress
 $ helm install --namespace ingress --name nginx-ingress stable/nginx-ingress
 ```
 
-For the Cert manager we installed using the helm chart [cert manager](https://github.com/helm/charts/tree/master/stable/cert-manager), please follow the instructions [here](https://cert-manager.readthedocs.io/en/latest/getting-started/) for more information
+We installed the Cert manager using the helm chart [cert manager](https://github.com/helm/charts/tree/master/stable/cert-manager). Please follow the instructions [here](https://cert-manager.readthedocs.io/en/latest/getting-started/) for more information.
 
-## Setup Database
+## Set Up Database
 
-You can configure a database in Kubernetes by yourself or use the one included in the Mattermost Helm chart or even use AWS RDS (or others).
-For the migration of `community.mattermost.com` to Kubernetes we decide for now to use the existing database we have in AWS RDS.
+You can configure a database in Kubernetes by yourself, or you can use the one included in the Mattermost Helm chart or AWS RDS (or others).
 
-So the configuration changes here, was basically the security groups to allow the Kubernetes cluster talk to the database.
+For the migration of `community.mattermost.com` to Kubernetes, we decided to use the existing database we have in AWS RDS.
 
-## Setup Mattermost
+The configuration changes done here were basically the security groups to allow the Kubernetes cluster to talk to the database.
 
-To setup the Mattermost enterprise edition you will need to setup a Stateful Set in order to have multiple volume claims for your pods when you scale.
+## Set Up Mattermost
 
-Our Stateful Set manifest, this is only valid if you use the Enterprise Edition which supports HA. If you use the Team Edition you can install with Helm (the official Mattermost Helm chart you can found [here](https://github.com/helm/charts/tree/master/stable/mattermost-team-edition))
+To set up the Mattermost enterprise edition you will need to set up a Stateful Set in order to have multiple volume claims for your pods when you scale.
+
+For our Stateful Set manifest, this is only valid if you use the Enterprise Edition which supports High Availability. If you use the Team Edition, you can install it with Helm (the official Mattermost Helm chart can be found [here](https://github.com/helm/charts/tree/master/stable/mattermost-team-edition))
 
 ```YAML
 apiVersion: apps/v1beta1
@@ -320,7 +322,7 @@ spec:
     name: mattermost-community-daily-app-metrics
 ```
 
-Configmap that holds the Mattermost config will be customized as your needs:
+Configmap that holds the Mattermost config will be customized per your needs:
 
 ```YAML
 apiVersion: v1
@@ -339,7 +341,7 @@ data:
     }
 ```
 
-We add a initContainer to setup the plugins, as you can see in the Stateful Set above, here is the confimap that holds the plugin definition and the script that download and setup the plugins.
+We added an initContainer to setup the plugins, as you can see in the Stateful Set above. Here is the confimap that holds the plugin definition and the script that download and setup the plugins:
 
 ```YAML
 apiVersion: v1
@@ -373,10 +375,9 @@ data:
 
 ## Other Deployments
 
-We also installed Prometheus and Grafana for monitoring the cluster and the Mattermost instance.
-Both you can install with Helm.
+We also installed Prometheus and Grafana for monitoring the cluster and the Mattermost instance. Both of these can be installed with Helm.
 
 ## Limitations
 
-  - For any changes in the `config.json` you need to update the configmap and kill the pods
-  - Same applies to the plugins. If you need to add a new plugin you need to update the confimap and restart the pods
+  - For any changes in the `config.json`, you need to update the configmap and kill the pods
+  - Same applies to the plugins. If you need to add a new plugin, you need to update the confimap and restart the pods
